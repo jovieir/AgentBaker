@@ -92,7 +92,7 @@ if ($nodeBootstrapCollectionTaskResult -ne 267011)
         C:\AzureData\windows\sendlogs.ps1 -Path $logFile
     } finally {
         # cleanup
-        if (Test-File $logFile) {
+        if (Test-Path $logFile) {
             Write-Log "Removing $logFile"
             Remove-Item -Path $logFile -Force -Recurse > $null
         }
