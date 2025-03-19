@@ -1,7 +1,7 @@
 param (
   [switch]$enableAll,
   [switch]$enableSnapshotSize,
-  [switch]$disableContainerdInfo
+  [switch]$disableContainerdInfo,
   [switch]$collectMinidumpOnly
 )
 # param must be at the beginning of the script, add more param if needed
