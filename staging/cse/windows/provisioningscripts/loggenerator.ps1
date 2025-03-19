@@ -69,7 +69,6 @@ if ($nodeBootstrapCollectionTaskResult -ne 267011)
     $WorkFolder = "C:\k\debug"
     try {
         cd $WorkFolder
-
         # Generate logs without constraints
         Write-Log "Generating Windows Logs"
         Start-Process -FilePath "powershell.exe" -ArgumentList "-File",$windowsLogCollectionScriptPath -PassThru -Wait
@@ -86,6 +85,7 @@ if ($nodeBootstrapCollectionTaskResult -ne 267011)
             # Re-run with minidumps only
             $windowsLogCollectionScriptPath += " -collectMinidumpOnly"
             Start-Process -FilePath "powershell.exe" -ArgumentList "-File",$windowsLogCollectionScriptPath  -PassThru -Wait
+            $logFile=(Get-Childitem -Path $WorkFolder -Filter "*_logs.zip").FullName
         }
         # Upload logs
         Write-Log "Start to uploading $logFile"
