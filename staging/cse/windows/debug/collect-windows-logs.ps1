@@ -2,6 +2,7 @@ param (
   [switch]$enableAll,
   [switch]$enableSnapshotSize,
   [switch]$disableContainerdInfo
+  [switch]$collectMinidumpOnly
 )
 # param must be at the beginning of the script, add more param if needed
 
@@ -411,22 +412,43 @@ else {
   Write-Host "vmcompute process not availabel"
 }
 
-# Collect dump files
-$tempFile=(CollectLogsFromDirectory -path "C:\ProgramData\Microsoft\Windows\WER" -targetFileName "WER-$($timeStamp).zip")
-if ($tempFile -ne "") {
-  $paths += $tempFile
+# We may only want to collect minidumps due to space constraints. Log upload is limited to 100MB
+if($collectMinidumpOnly){
+    Write-Host "Collecting mini dump only"
+    $tempFile=(CollectLogsFromDirectory -path "C:\Windows\Minidump" -targetFileName "Minidump-$($timeStamp).zip")
+    if ($tempFile -ne "") {
+      $paths += $tempFile
+    }
+    # IID also collects minidumps under C:/WindowsAzure/Logs/aks if available, so we copy the latest bugcheck dump
+    # https://github.com/Azure/azure-diskinspect-service/blob/master/manifests/windows/aks
+    # Copy latest minidump to this directory
+    $latestMinidump=(Get-ChildItem -Path "C:\Windows\Minidump\*.dmp" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+    if ($latestMinidump -ne $null){
+        # Clean up previous minidump, if exists
+        Get-Item -Path "C:\WindowsAzure\Logs\aks\*.dmp" | Remove-Item -Force -ErrorAction Ignore
+        Write-Host "Copying $latestMinidump to C:\WindowsAzure\Logs\aks"
+        Copy-Item $latestMinidump "C:\WindowsAzure\Logs\aks" -Passthru -ErrorAction Ignore   
+    }
 }
-$tempFile=(CollectLogsFromDirectory -path "C:\Windows\Minidump" -targetFileName "Minidump-$($timeStamp).zip")
-if ($tempFile -ne "") {
-  $paths += $tempFile
-}
-$tempFile=(CollectLogsFromDirectory -path "C:\Windows\SystemTemp" -targetFileName "SystemTemp-$($timeStamp).zip")
-if ($tempFile -ne "") {
-  $paths += $tempFile
-}
-$tempFile=(CollectLogsFromDirectory -path "C:\Windows\MEMORY.DMP" -targetFileName "MemoryDump-$($timeStamp).zip")
-if ($tempFile -ne "") {
-  $paths += $tempFile
+else { # Running in standalone mode
+    # Collect dump files
+    $tempFile=(CollectLogsFromDirectory -path "C:\ProgramData\Microsoft\Windows\WER" -targetFileName "WER-$($timeStamp).zip")
+    if ($tempFile -ne "") {
+      $paths += $tempFile
+    }
+    $tempFile=(CollectLogsFromDirectory -path "C:\Windows\Minidump" -targetFileName "Minidump-$($timeStamp).zip")
+    if ($tempFile -ne "") {
+      $paths += $tempFile
+    }
+    $tempFile=(CollectLogsFromDirectory -path "C:\Windows\SystemTemp" -targetFileName "SystemTemp-$($timeStamp).zip")
+    if ($tempFile -ne "") {
+      $paths += $tempFile
+    }
+    $tempFile=(CollectLogsFromDirectory -path "C:\Windows\MEMORY.DMP" -targetFileName "MemoryDump-$($timeStamp).zip")
+    if ($tempFile -ne "") {
+      $paths += $tempFile
+    }
+
 }
 
 $gpuTemp = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
