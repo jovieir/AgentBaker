@@ -75,7 +75,7 @@ if ($nodeBootstrapCollectionTaskResult -ne 267011)
         Start-Process -FilePath "powershell.exe" -ArgumentList "-File",$windowsLogCollectionScriptPath -PassThru -Wait
 
         # Get the output
-        $logFile=(Get-Childitem -Path $WorkFolder  -Filter "*_logs.zip").FullName
+        $logFile=(Get-Childitem -Path $WorkFolder -Filter "*_logs.zip").FullName
         $logfileSize=(Get-Item -Path $logFile).Length
         if ( $logfileSize -gt $IMDSfileSizeLimit ){
             ### fall back to last minidump only
