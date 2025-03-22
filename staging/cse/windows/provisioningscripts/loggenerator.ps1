@@ -6,7 +6,7 @@ $isInitializing=$False
 $LogPath="c:\k\loggenerator.log"
 $isEnableLog=$true # enable debugging for now
 $scheduledTaskName="aks-log-generator-task"
-$windowsLogCollectionScriptPath="C:\k\debug\collect-windows-logs.ps1"
+$windowsLogCollectionScriptPath="C:\k\throttledLogCollection.ps1"
 $IMDSfileSizeLimit = 100 * 1024 * 1024 # 100 MB
 
 filter Timestamp { "$(Get-Date -Format o): $_" }
@@ -71,25 +71,13 @@ if ($nodeBootstrapCollectionTaskResult -ne 267011)
         cd $WorkFolder
         # Generate logs without constraints
         Write-Log "Generating Windows Logs"
+        $logfile = $null
         Start-Process -FilePath "powershell.exe" -ArgumentList "-File",$windowsLogCollectionScriptPath -PassThru -Wait
 
         # Get the output
         $logFile=(Get-Childitem -Path $WorkFolder -Filter "*_logs.zip").FullName
         Write-Log $logFile
-        $logfileSize=(Get-Item -Path $logFile).Length
-        if ( $logfileSize -gt $IMDSfileSizeLimit ){
-            ### fall back to last minidump only
-            Write-Log "Windows logs are over 100MB, removing memory dumps"
-            # Remove the previous log zip
-            Write-Log "Removing file $logFile"
-            Remove-Item -Path $logFile -Force -Recurse > $null
-
-            # Re-run with minidumps only
-            $windowsLogCollectionScriptPath += " -collectMinidumpOnly"
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-File",$windowsLogCollectionScriptPath  -PassThru -Wait
-            $logFile=(Get-Childitem -Path $WorkFolder -Filter "*_logs.zip").FullName
-            Write-Log "New generated log file $logFile"
-        }
+        
         # Upload logs
         Write-Log "Start to uploading $logFile"
         C:\AzureData\windows\sendlogs.ps1 -Path $logFile
