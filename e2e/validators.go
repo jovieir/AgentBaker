@@ -68,7 +68,31 @@ func ValidateNvidiaModProbeInstalled(ctx context.Context, s *Scenario) {
 		"set -ex",
 		"sudo nvidia-modprobe",
 	}
-	execScriptOnVMForScenarioValidateExitCode(ctx, s, strings.Join(command, "\n"), 0, "cound not execute nvidia-modprobe command")
+	execScriptOnVMForScenarioValidateExitCode(ctx, s, strings.Join(command, "\n"), 0, "could not execute nvidia-modprobe command")
+}
+
+func ValidateNvidiaGRIDLicenseValid(ctx context.Context, s *Scenario) {
+	command := []string{
+		"set -ex",
+		// Capture the license status output, or continue silently if not found
+		"license_status=$(sudo nvidia-smi -q | grep 'License Status' | grep 'Licensed' || true)",
+		// If the output is empty, print an error message and exit with a nonzero code
+		"if [ -z \"$license_status\" ]; then echo 'License status not valid or not found'; exit 1; fi",
+		// Check that nvidia-gridd is active by capturing its is-active output
+		"active_status=$(sudo systemctl is-active nvidia-gridd)",
+		"if [ \"$active_status\" != \"active\" ]; then echo \"nvidia-gridd is not active: $active_status\"; exit 1; fi",
+	}
+	execScriptOnVMForScenarioValidateExitCode(ctx, s, strings.Join(command, "\n"), 0, "failed to validate nvidia-smi license state or nvidia-gridd service status")
+}
+
+func ValidateNvidiaPersistencedRunning(ctx context.Context, s *Scenario) {
+	command := []string{
+		"set -ex",
+		// Check that nvidia-persistenced.service is active by capturing its is-active output
+		"active_status=$(sudo systemctl is-active nvidia-persistenced.service)",
+		"if [ \"$active_status\" != \"active\" ]; then echo \"nvidia-gridd is not active: $active_status\"; exit 1; fi",
+	}
+	execScriptOnVMForScenarioValidateExitCode(ctx, s, strings.Join(command, "\n"), 0, "failed to validate nvidia-persistenced.service status")
 }
 
 func ValidateNonEmptyDirectory(ctx context.Context, s *Scenario, dirName string) {
@@ -318,6 +342,13 @@ func ValidateKubeletHasFlags(ctx context.Context, s *Scenario, filePath string) 
 	execResult := execScriptOnVMForScenarioValidateExitCode(ctx, s, "sudo journalctl -u kubelet", 0, "could not retrieve kubelet logs with journalctl")
 	configFileFlags := fmt.Sprintf("FLAG: --config=\"%s\"", filePath)
 	require.Containsf(s.T, execResult.stdout.String(), configFileFlags, "expected to find flag %s, but not found", "config")
+}
+
+// ValidateKubeletHasCLIFlag checks kubelet is started with the right flags and configs.
+func ValidateKubeletHasCLIFlag(ctx context.Context, s *Scenario, flagName, flagValue string) {
+	execResult := execScriptOnVMForScenarioValidateExitCode(ctx, s, "sudo journalctl -u kubelet", 0, "could not retrieve kubelet logs with journalctl")
+	configFileFlags := fmt.Sprintf("FLAG: --%s=\"%s", flagName, flagValue)
+	require.Containsf(s.T, execResult.stdout.String(), configFileFlags, "expected to find flag %s=%s, but not found", flagName, flagValue)
 }
 
 func ValidatePodUsingNVidiaGPU(ctx context.Context, s *Scenario) {
